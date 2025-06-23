@@ -51,6 +51,10 @@ config PCI_EXPRESS_Q35
     select PCI_EXPRESS
     select PAM
 
+config PCI_VIA
+    bool
+    select PCI
+
 config PCI_EXPRESS_GENERIC_BRIDGE
     bool
     select PCI_EXPRESS
