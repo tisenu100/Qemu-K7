@@ -647,6 +647,23 @@ void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent,
     }
 }
 
+void acpi_pm1_cnt_headless_init(ACPIREGS *ar, MemoryRegion *parent, 
+                                bool disable_s3, bool disable_s4, uint8_t s4_val, 
+                                bool acpi_only)
+{
+    /* Meant for devices with custom CNT implementation */
+
+    ar->pm1.cnt.s4_val = s4_val;
+    ar->pm1.cnt.acpi_only = acpi_only;
+    ar->wakeup.notify = acpi_notify_wakeup;
+    qemu_register_wakeup_notifier(&ar->wakeup);
+
+    /*
+     * Register wake-up support in QMP query-current-machine API
+     */
+    qemu_register_wakeup_support();
+}
+
 void acpi_pm1_cnt_reset(ACPIREGS *ar)
 {
     ar->pm1.cnt.cnt = 0;

@@ -88,6 +88,20 @@ config I440FX
     select SMBIOS_LEGACY
     select FW_CFG_DMA
 
+config VIA_PC
+    bool
+    default y
+    depends on I386
+    imply VMPORT
+    imply VMMOUSE
+    select PC_PCI
+    select PC_ACPI
+    select AMD_K8
+    select PCI_K8T800
+    select VT8237
+    select IDE_VIA
+    select USB_UHCI
+
 config ISAPC
     bool
     default y

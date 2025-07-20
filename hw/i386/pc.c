@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "qemu/qemu-print.h"
 #include "exec/target_page.h"
 #include "hw/i386/pc.h"
 #include "hw/char/serial-isa.h"
@@ -286,6 +287,7 @@ GSIState *pc_gsi_create(qemu_irq **irqs, bool pci_enabled)
 static void ioport80_write(void *opaque, hwaddr addr, uint64_t data,
                            unsigned size)
 {
+    qemu_printf("POST: %x\n", (uint16_t)data);
 }
 
 static uint64_t ioport80_read(void *opaque, hwaddr addr, unsigned size)
@@ -629,6 +631,13 @@ void pc_machine_done(Notifier *notifier, void *data)
 
     pc_cmos_init_late(pcms);
 }
+
+static
+void pc_machine_done_dummy(Notifier *notifier, void *data)
+{
+    /* Empty */
+}
+
 
 /* setup pci memory address space mapping into system address space */
 void pc_pci_as_mapping_init(MemoryRegion *system_memory,
@@ -1224,6 +1233,94 @@ void pc_basic_device_init(struct PCMachineState *pcms,
                     pcms->vmport != ON_OFF_AUTO_ON, &error_fatal);
 
     pcms->machine_done.notify = pc_machine_done;
+    qemu_add_machine_init_done_notifier(&pcms->machine_done);
+}
+
+void pc_basic_device_init_clean(struct PCMachineState *pcms,
+                          ISABus *isa_bus, qemu_irq *gsi,
+                          ISADevice *rtc_state,
+                          bool create_fdctrl,
+                          uint32_t hpet_irqs)
+{
+    int i;
+    DeviceState *hpet = NULL;
+    int pit_isa_irq = 0;
+    qemu_irq pit_alt_irq = NULL;
+    ISADevice *pit = NULL;
+    MemoryRegion *ioport80_io = g_new(MemoryRegion, 1);
+    MemoryRegion *ioportF0_io = g_new(MemoryRegion, 1);
+    X86MachineState *x86ms = X86_MACHINE(pcms);
+
+    memory_region_init_io(ioport80_io, NULL, &ioport80_io_ops, NULL, "ioport80", 1);
+    memory_region_add_subregion(isa_bus->address_space_io, 0x80, ioport80_io);
+
+    memory_region_init_io(ioportF0_io, NULL, &ioportF0_io_ops, NULL, "ioportF0", 1);
+    memory_region_add_subregion(isa_bus->address_space_io, 0xf0, ioportF0_io);
+
+    /*
+     * Check if an HPET shall be created.
+     */
+    if (pcms->hpet_enabled) {
+        qemu_irq rtc_irq;
+
+        hpet = qdev_try_new(TYPE_HPET);
+        if (!hpet) {
+            error_report("couldn't create HPET device");
+            exit(1);
+        }
+        /*
+         * For pc-piix-*, hpet's intcap is always IRQ2. For pc-q35-*,
+         * use IRQ16~23, IRQ8 and IRQ2.  If the user has already set
+         * the property, use whatever mask they specified.
+         */
+        uint8_t compat = object_property_get_uint(OBJECT(hpet),
+                HPET_INTCAP, NULL);
+        if (!compat) {
+            qdev_prop_set_uint32(hpet, HPET_INTCAP, hpet_irqs);
+        }
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(hpet), &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(hpet), 0, HPET_BASE);
+
+        for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+            sysbus_connect_irq(SYS_BUS_DEVICE(hpet), i, gsi[i]);
+        }
+        pit_isa_irq = -1;
+        pit_alt_irq = qdev_get_gpio_in(hpet, HPET_LEGACY_PIT_INT);
+        rtc_irq = qdev_get_gpio_in(hpet, HPET_LEGACY_RTC_INT);
+
+        /* overwrite connection created by south bridge */
+        qdev_connect_gpio_out(DEVICE(rtc_state), 0, rtc_irq);
+    }
+
+    object_property_add_alias(OBJECT(pcms), "rtc-time", OBJECT(rtc_state),
+                              "date");
+
+    if (!xen_enabled() &&
+        (x86ms->pit == ON_OFF_AUTO_AUTO || x86ms->pit == ON_OFF_AUTO_ON)) {
+        if (kvm_pit_in_kernel()) {
+            pit = kvm_pit_init(isa_bus, 0x40);
+        } else {
+            pit = i8254_pit_init(isa_bus, 0x40, pit_isa_irq, pit_alt_irq);
+        }
+        if (hpet) {
+            /* connect PIT to output control line of the HPET */
+            qdev_connect_gpio_out(hpet, 0, qdev_get_gpio_in(DEVICE(pit), 0));
+        }
+        object_property_set_link(OBJECT(pcms->pcspk), "pit",
+                                 OBJECT(pit), &error_fatal);
+        isa_realize_and_unref(pcms->pcspk, isa_bus, &error_fatal);
+    }
+
+    if (pcms->vmport == ON_OFF_AUTO_AUTO) {
+        pcms->vmport = (xen_enabled() || !pcms->i8042_enabled)
+            ? ON_OFF_AUTO_OFF : ON_OFF_AUTO_ON;
+    }
+
+    /* Super I/O */
+    pc_superio_init(isa_bus, create_fdctrl, pcms->i8042_enabled,
+                    pcms->vmport != ON_OFF_AUTO_ON, &error_fatal);
+
+    pcms->machine_done.notify = pc_machine_done_dummy;
     qemu_add_machine_init_done_notifier(&pcms->machine_done);
 }
 

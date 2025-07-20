@@ -9,6 +9,9 @@ config NVDIMM
     bool
     select MEM_DEVICE
 
+config AMD_K8
+    bool
+
 config SPARSE_MEM
     bool
 

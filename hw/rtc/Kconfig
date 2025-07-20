@@ -18,6 +18,10 @@ config MC146818RTC
     depends on ISA_BUS
     bool
 
+config VIA_NVRAM
+    depends on ISA_BUS
+    bool
+
 config SUN4V_RTC
     bool
 

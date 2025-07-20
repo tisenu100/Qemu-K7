@@ -49,6 +49,17 @@ config PIIX
     select MC146818RTC
     select USB_UHCI
 
+config VT8237
+    bool
+    select ACPI
+    select ACPI_SMBUS
+    select I8254
+    select I8257
+    select I8259
+    select APM
+    select ISA_BUS
+    select VIA_NVRAM
+
 config VT82C686
     bool
     select ISA_BUS

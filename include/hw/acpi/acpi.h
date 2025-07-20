@@ -171,6 +171,9 @@ void acpi_pm1_evt_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
 void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent,
                        bool disable_s3, bool disable_s4, uint8_t s4_val,
                        bool acpi_only);
+void acpi_pm1_cnt_headless_init(ACPIREGS *ar, MemoryRegion *parent, 
+                                bool disable_s3, bool disable_s4, uint8_t s4_val, 
+                                bool acpi_only);
 void acpi_pm1_cnt_update(ACPIREGS *ar,
                          bool sci_enable, bool sci_disable);
 void acpi_pm1_cnt_reset(ACPIREGS *ar);

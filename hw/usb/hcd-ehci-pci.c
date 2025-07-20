@@ -211,6 +211,12 @@ static struct EHCIPCIInfo ehci_pci_info[] = {
         .device_id = PCI_DEVICE_ID_INTEL_82801I_EHCI2,
         .revision  = 0x03,
         .companion = true,
+    },{
+        .name      = "vt2837-ehci", /* 00:10.4 */
+        .vendor_id = PCI_VENDOR_ID_VIA,
+        .device_id = PCI_DEVICE_ID_VIA_8237_EHCI, /* VT8237 */
+        .revision  = 0x86,
+        .companion = true,
     }
 };
 

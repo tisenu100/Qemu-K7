@@ -46,6 +46,10 @@ config PCI_I440FX
     select PCI
     select PAM
 
+config PCI_K8T800
+    bool
+    select PCI
+
 config PCI_EXPRESS_Q35
     bool
     select PCI_EXPRESS

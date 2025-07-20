@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/cputlb.h"
@@ -59,6 +60,9 @@ void helper_cpuid(CPUX86State *env)
     env->regs[R_EBX] = ebx;
     env->regs[R_ECX] = ecx;
     env->regs[R_EDX] = edx;
+
+    if(env->regs[R_ECX] == 0x80000001) /* Dirty hack for Qemu K7 to set an AMD Athlon profile */
+        env->regs[R_EBX] = 0x00000028;
 }
 
 void helper_rdtsc(CPUX86State *env)
